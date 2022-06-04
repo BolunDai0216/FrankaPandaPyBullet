@@ -1,5 +1,7 @@
 # Implemented Controllers
 
+Here we provide a bried explanation for each of the implemented controller.
+
 ## Impedance Controller
 
 The idea is to make the end-effector act like a spring-damper system. The end-effector force would have the form of a PD controller
