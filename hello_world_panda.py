@@ -1,4 +1,5 @@
 import time
+from pdb import set_trace
 
 import numpy as np
 import pybullet as p
@@ -43,7 +44,11 @@ def main():
     while True:
         for slider_id, joint_id in zip(debug_sliders, joint_ids):
             # Get joint angle from debug slider
-            _joint_angle = p.readUserDebugParameter(slider_id)
+            try:
+                _joint_angle = p.readUserDebugParameter(slider_id)
+            except:
+                # Sometimes it fails to read the debug slider
+                continue
 
             # Apply joint angle to robot
             p.resetJointState(robotID, joint_id, _joint_angle)
