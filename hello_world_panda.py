@@ -1,8 +1,8 @@
 import time
 
+import numpy as np
 import pybullet as p
 import pybullet_data
-import numpy as np
 
 
 def main():
