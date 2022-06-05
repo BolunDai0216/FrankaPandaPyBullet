@@ -1,18 +1,14 @@
-import time
-from pdb import set_trace
-
-import numpy as np
 import pybullet as p
 import pybullet_data
 
 
 def main():
-    client = p.connect(p.GUI)
+    p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
 
     # Load plane
-    planeID = p.loadURDF("plane.urdf")
+    p.loadURDF("plane.urdf")
 
     # Load Franka Panda Robot
     robotID = p.loadURDF("./franka_panda/panda.urdf", useFixedBase=True)

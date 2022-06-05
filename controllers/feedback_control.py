@@ -128,6 +128,7 @@ class FeedbackController:
         plt.savefig(name, dpi=200, transparent=False, bbox_inches="tight")
 
     def get_control(self, robot, t, q, dq, frameID):
+        # Get planned position, velocity and accleration
         pos, vel, acc = self.retrieve_plan(t)
 
         # Get frame ID for grasp target
@@ -136,15 +137,21 @@ class FeedbackController:
         # Get Jacobian from grasp target frame
         jacobian = robot.getFrameJacobian(frameID, jacobian_frame)
 
+        # Get frame position and velocity
         position = robot.data.oMf[frameID].translation
         velocity = jacobian[:3, :] @ dq[:, np.newaxis]
 
+        # Get frame error
         delta_p = pos - position[:, np.newaxis]
         delta_v = vel - velocity
 
+        # Get pseudo-inverse of frame Jacobian
         pinv_jac = np.linalg.pinv(jacobian[:3, :])
+
+        # Compute Coriolis and Gravitational terms
         C = robot.nle(q, dq)
 
+        # Compute torque
         tau = (
             C[:, np.newaxis]
             + pinv_jac @ delta_p

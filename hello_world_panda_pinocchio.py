@@ -1,5 +1,4 @@
 import pathlib
-from pdb import set_trace
 
 import numpy as np
 import pybullet as p
@@ -11,12 +10,12 @@ from controllers.utils import get_state_update_pinocchio, send_joint_command
 
 
 def main():
-    client = p.connect(p.GUI)
+    p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
 
     # Load plane
-    planeID = p.loadURDF("plane.urdf")
+    p.loadURDF("plane.urdf")
 
     # Load Franka Panda Robot
     file_directory = str(pathlib.Path(__file__).parent.resolve())
@@ -27,7 +26,7 @@ def main():
     robot = RobotWrapper.BuildFromURDF(robot_URDF)
 
     # Get frame ID for grasp target
-    GRASPTARGET_ID = robot.model.getFrameId("panda_grasptarget")
+    FRAME_ID = robot.model.getFrameId("panda_grasptarget")
 
     # Define desired end-effector position
     gt_desired_position = np.array([0.3, 0.3, 0.9])
@@ -45,15 +44,13 @@ def main():
 
     for i in range(15000):
         # Update pinocchio model and get joint states
-        joint_angles, joint_velocities = get_state_update_pinocchio(robot, robotID)
+        q, dq = get_state_update_pinocchio(robot, robotID)
 
         # Get end-effector position
-        gt_position = robot.data.oMf[GRASPTARGET_ID].translation
+        gt_position = robot.data.oMf[FRAME_ID].translation
 
         # Get joint torques using impedance controller
-        tau = impedance_control(
-            robot, GRASPTARGET_ID, gt_desired_position, joint_angles, joint_velocities
-        )
+        tau = impedance_control(robot, FRAME_ID, gt_desired_position, q, dq)
 
         # Send joint commands to motor
         send_joint_command(robotID, tau)
