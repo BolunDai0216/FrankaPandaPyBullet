@@ -1,10 +1,7 @@
-from pdb import set_trace
-
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pinocchio as pin
-from matplotlib.ticker import MultipleLocator, NullFormatter
+from matplotlib.ticker import MultipleLocator
 
 
 class FeedbackController:
