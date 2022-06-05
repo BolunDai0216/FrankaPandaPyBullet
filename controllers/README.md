@@ -6,7 +6,7 @@ Here we provide a bried explanation for each of the implemented controller.
 
 The idea is to make the end-effector act like a spring-damper system. The end-effector force would have the form of a PD controller
 
-$$F = \mathbf{K}_p(\mathbf{p}_\mathrm{des} - \mathbf{p}) + \mathbf{K}_d(\mathbf{v}_\mathrm{des} - \mathbf{v})$$
+$$F = \mathbf{K}_p\Delta\mathbf{p} + \mathbf{K}_d\Delta\mathbf{v}$$
 
 Then, we have the joint torques being
 
