@@ -3,10 +3,11 @@ from pdb import set_trace
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pinocchio as pin
 from matplotlib.ticker import MultipleLocator, NullFormatter
 
 
-class FeedforwardController:
+class FeedbackController:
     def __init__(self, init_pos, target_pos, terminal_time):
         self.init_pos = init_pos
         self.target_pos = target_pos
@@ -48,30 +49,37 @@ class FeedforwardController:
         self.coeffs = np.linalg.inv(A_mat) @ B_Vec
 
     def retrieve_plan(self, t):
-        time_vec_pos = np.array(
-            [[t**5], [t**4], [t**3], [t**2], [t**1], [0.0]]
-        )
-        time_vec_vel = np.array(
-            [[5 * t**4], [4 * t**3], [3 * t**2], [2 * t**1], [1.0], [0.0]]
-        )
-        time_vec_acc = np.array(
-            [[20 * t**3], [12 * t**2], [6 * t**1], [2.0], [0.0], [0.0]]
-        )
+        if t <= self.T:
+            time_vec_pos = np.array(
+                [[t**5], [t**4], [t**3], [t**2], [t**1], [0.0]]
+            )
+            time_vec_vel = np.array(
+                [[5 * t**4], [4 * t**3], [3 * t**2], [2 * t**1], [1.0], [0.0]]
+            )
+            time_vec_acc = np.array(
+                [[20 * t**3], [12 * t**2], [6 * t**1], [2.0], [0.0], [0.0]]
+            )
 
-        pos = self.coeffs.T @ time_vec_pos * self.target_vec + self.init_pos
-        vel = self.coeffs.T @ time_vec_vel * self.target_vec
-        acc = self.coeffs.T @ time_vec_acc * self.target_vec
+            pos = self.coeffs.T @ time_vec_pos * self.target_vec + self.init_pos
+            vel = self.coeffs.T @ time_vec_vel * self.target_vec
+            acc = self.coeffs.T @ time_vec_acc * self.target_vec
+
+        else:
+            pos = self.target_pos
+            vel = 0.0 * self.target_vec
+            acc = 0.0 * self.target_vec
 
         return pos, vel, acc
 
     def save_plan(self, name="imgs/feedforward_plan.png"):
-        times = np.linspace(0, self.T, 100)
+        N = 200
+        times = np.linspace(0, self.T + 1, N)
 
         pos_list = []
         vel_list = []
         acc_list = []
 
-        for i in range(100):
+        for i in range(N):
             _p, _v, _a = self.retrieve_plan(times[i])
             pos_list.append(_p)
             vel_list.append(_v)
@@ -119,5 +127,29 @@ class FeedforwardController:
         plt.tight_layout()
         plt.savefig(name, dpi=200, transparent=False, bbox_inches="tight")
 
-    def get_control(self, t):
-        pass
+    def get_control(self, robot, t, q, dq, frameID):
+        pos, vel, acc = self.retrieve_plan(t)
+
+        # Get frame ID for grasp target
+        jacobian_frame = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
+
+        # Get Jacobian from grasp target frame
+        jacobian = robot.getFrameJacobian(frameID, jacobian_frame)
+
+        position = robot.data.oMf[frameID].translation
+        velocity = jacobian[:3, :] @ dq[:, np.newaxis]
+
+        delta_p = pos - position[:, np.newaxis]
+        delta_v = vel - velocity
+
+        pinv_jac = np.linalg.pinv(jacobian[:3, :])
+        C = robot.nle(q, dq)
+
+        tau = (
+            C[:, np.newaxis]
+            + pinv_jac @ delta_p
+            + 0.5 * pinv_jac @ delta_v
+            - 0.05 * (np.eye(9) @ dq[:, np.newaxis])
+        )
+
+        return tau

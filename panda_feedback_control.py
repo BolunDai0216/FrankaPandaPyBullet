@@ -3,19 +3,21 @@ import pathlib
 from pdb import set_trace
 
 import numpy as np
+import pinocchio as pin
 import pybullet as p
 import pybullet_data
 from pinocchio.robot_wrapper import RobotWrapper
 
+from controllers.feedback_control import FeedbackController
 from controllers.impedance_control import impedance_control
 from controllers.utils import get_state_update_pinocchio, send_joint_command
-from controllers.feedforward_control import FeedforwardController
 
 
 def main():
     client = p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
+    p.setTimeStep(1 / 240)
 
     # Load plane
     planeID = p.loadURDF("plane.urdf")
@@ -54,14 +56,15 @@ def main():
 
         if i == 0:
             gt_init_position = copy.deepcopy(gt_position)
-            ff_control = FeedforwardController(
+            fb_control = FeedbackController(
                 gt_init_position[:, np.newaxis], gt_desired_position[:, np.newaxis], 5.0
             )
-            ff_control.save_plan()
+            fb_control.save_plan()
 
-        # Get joint torques using a feedforward controller
-        tau = impedance_control(
-            robot, GRASPTARGET_ID, gt_desired_position, joint_angles, joint_velocities
+        # Get joint torques using a resolved rate controller
+        t = i * (1 / 240)
+        tau = fb_control.get_control(
+            robot, t, joint_angles, joint_velocities, GRASPTARGET_ID
         )
 
         # Send joint commands to motor

@@ -19,3 +19,21 @@ $$\tau_G = C(\mathbf{q}, \dot{\mathbf{q}}) + G(\mathbf{q})\ \ \ \ \mathrm{and}\ 
 The actual torque that is applied to the manipulator would be
 
 $$\tau = \tau_F + \tau_G + \tau_v.$$
+
+## Feedback Controller
+
+We can write the Taylor's expansion for the forward kinematic function as
+
+$$\mathbf{x}^{\mathrm{des}} \approx \mathbf{F}(\mathbf{q}) + \frac{\partial\mathbf{F}}{\partial\mathbf{q}}\Big|_{\mathbf{q}}(\mathbf{q}^\prime - \mathbf{q}) + \epsilon = \mathbf{x} + \mathbf{J}(\mathbf{q})\Delta{\mathbf{q}} + \epsilon$$
+
+this gives us
+
+$$\Delta{\mathbf{q}} = \mathbf{J}^+(\mathbf{q})(\mathbf{x}^{\mathrm{des}} - \mathbf{x}).$$
+
+Additionally, we have
+
+$$\Delta{\dot{\mathbf{q}}} = \mathbf{J}^+(\mathbf{q})(\dot{\mathbf{x}}^{\mathrm{des}} - \dot{\mathbf{x}})$$
+
+Similar to the case in impedance control we would also need to add terms for gravity compensation and joint velocity damping. This gives us the final controller as
+
+$$\tau = \mathbf{K}_p\Delta{\mathbf{q}} + \mathbf{K}_d\Delta{\dot{\mathbf{q}}} + \tau_G + \tau_v.$$
