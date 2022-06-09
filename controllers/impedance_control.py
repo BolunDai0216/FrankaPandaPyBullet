@@ -4,7 +4,7 @@ import pinocchio as pin
 
 def impedance_control(robot, frameID, pos_des, q, dq, tol=5e-3):
     # Define impedance parameters
-    Kp = np.diag([1.0, 1.0, 1.0])
+    Kp = np.diag([0.5, 1.0, 0.5])
     Kd = np.diag([0.5, 0.5, 0.5])
 
     # Define frame which Jacobian is computed

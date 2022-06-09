@@ -44,7 +44,7 @@ def main():
         forces=np.zeros(9),
     )
 
-    for i in range(15000):
+    for i in range(50000):
         # Update pinocchio model and get joint states
         q, dq = get_state_update_pinocchio(robot, robotID)
 
