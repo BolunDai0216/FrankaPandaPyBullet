@@ -38,10 +38,7 @@ def main():
 
     # Disable the velocity control on the joints as we use torque control.
     p.setJointMotorControlArray(
-        robotID,
-        active_joint_ids,
-        p.VELOCITY_CONTROL,
-        forces=np.zeros(9),
+        robotID, active_joint_ids, p.VELOCITY_CONTROL, forces=np.zeros(9),
     )
 
     for i in range(50000):
