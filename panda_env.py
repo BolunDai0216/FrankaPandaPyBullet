@@ -1,12 +1,12 @@
 import pathlib
-from pdb import set_trace
 
 import numpy as np
 import pybullet as p
 import pybullet_data
-from controllers.utils import get_state_update_pinocchio, send_joint_command
 from gym import Env, spaces
 from pinocchio.robot_wrapper import RobotWrapper
+
+from controllers.utils import get_state_update_pinocchio, send_joint_command
 
 
 class PandaEnv(Env):
@@ -93,12 +93,3 @@ class PandaEnv(Env):
 
     def close(self):
         p.disconnect()
-
-
-def main():
-    env = PandaEnv()
-    env.reset()
-
-
-if __name__ == "__main__":
-    main()
