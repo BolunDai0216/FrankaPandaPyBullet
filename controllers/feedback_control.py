@@ -1,5 +1,8 @@
+from pdb import set_trace
+
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.linalg as LA
 import pinocchio as pin
 from matplotlib.ticker import MultipleLocator
 
@@ -31,7 +34,7 @@ class FeedbackController:
                     1.0,
                     0.0,
                 ],
-                [20 * self.T ** 3, 12 * self.T ** 2, 6 * self.T, 2.0, 0.0, 0.0,],
+                [20 * self.T ** 3, 12 * self.T ** 2, 6 * self.T, 2.0, 0.0, 0.0],
             ]
         )
 
@@ -125,6 +128,7 @@ class FeedbackController:
         jacobian_frame = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
 
         # Get Jacobian from grasp target frame
+        # preprocessing is done in get_state_update_pinocchio()
         jacobian = robot.getFrameJacobian(frameID, jacobian_frame)
 
         # Get frame position and velocity
@@ -138,15 +142,31 @@ class FeedbackController:
         # Get pseudo-inverse of frame Jacobian
         pinv_jac = np.linalg.pinv(jacobian[:3, :])
 
+        # Get dJ
+        pin.computeJointJacobiansTimeVariation(robot.model, robot.data, q, dq)
+        djac = pin.getFrameJacobianTimeVariation(
+            robot.model, robot.data, frameID, jacobian_frame
+        )
+
         # Compute Coriolis and Gravitational terms
         C = robot.nle(q, dq)
 
-        # Compute torque
-        tau = (
-            C[:, np.newaxis]
-            + pinv_jac @ delta_p
-            + 0.5 * pinv_jac @ delta_v
-            - 0.05 * (np.eye(9) @ dq[:, np.newaxis])
-        )
+        # Compute mass matrix
+        M = robot.mass(q)
 
-        return tau
+        # Feedforward torque
+        ddq_cmd = pinv_jac @ (acc - djac[:3, :] @ dq[:, np.newaxis])
+        tau_ff = M @ (ddq_cmd + 10.0 * pinv_jac @ delta_p + 5.0 * pinv_jac @ delta_v)
+
+        # Computed torque control
+        tau = C[:, np.newaxis] + tau_ff + 0.1 * (0 - np.eye(9) @ dq[:, np.newaxis])
+
+        # Feedback control
+        # tau = (
+        #     10.0 * pinv_jac @ delta_p
+        #     + 5.0 * pinv_jac @ delta_v
+        #     + C[:, np.newaxis]
+        #     + 0.1 * (0 - np.eye(9) @ dq[:, np.newaxis])
+        # )
+
+        return tau, pos
