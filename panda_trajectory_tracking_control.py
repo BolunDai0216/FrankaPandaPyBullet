@@ -48,6 +48,15 @@ def main():
     measured_positions = []
     time_array = []
 
+    # Create target location indicator
+    visualShapeId = p.createVisualShape(
+        shapeType=p.GEOM_SPHERE, radius=0.04, rgbaColor=[1, 0, 0, 1]
+    )
+    p.createMultiBody(
+        baseVisualShapeIndex=visualShapeId,
+        basePosition=gt_desired_position[:, 0].tolist(),
+    )
+
     for i in range(10000):
         # Update pinocchio model and get joint states
         q, dq = get_state_update_pinocchio(robot, robotID)
