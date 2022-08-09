@@ -158,7 +158,7 @@ class FeedbackController:
         ddq_cmd = pinv_jac @ (acc - djac[:3, :] @ dq[:, np.newaxis])
         tau_ff = M @ (ddq_cmd + 10.0 * pinv_jac @ delta_p + 5.0 * pinv_jac @ delta_v)
 
-        # Computed torque control
+        # Feedback linearization control
         tau = C[:, np.newaxis] + tau_ff + 0.1 * (0 - np.eye(9) @ dq[:, np.newaxis])
 
         # Feedback control
