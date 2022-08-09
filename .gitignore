@@ -130,3 +130,10 @@ dmypy.json
 
 # MacOS
 .DS_Store
+
+# Plotting data
+imgs/
+data/
+
+# VSCode
+.vscode/
