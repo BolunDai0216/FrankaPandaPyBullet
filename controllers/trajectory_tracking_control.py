@@ -1,8 +1,5 @@
-from pdb import set_trace
-
 import matplotlib.pyplot as plt
 import numpy as np
-import numpy.linalg as LA
 import pinocchio as pin
 from matplotlib.ticker import MultipleLocator
 

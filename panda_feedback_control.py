@@ -2,11 +2,8 @@ import copy
 import pathlib
 import pickle
 import time
-from pdb import set_trace
 
 import numpy as np
-import numpy.linalg as LA
-import pinocchio as pin
 import pybullet as p
 import pybullet_data
 from pinocchio.robot_wrapper import RobotWrapper
