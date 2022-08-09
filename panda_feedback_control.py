@@ -11,7 +11,7 @@ import pybullet as p
 import pybullet_data
 from pinocchio.robot_wrapper import RobotWrapper
 
-from controllers.feedback_control import FeedbackController
+from controllers.trajectory_tracking_control import TrajectoryTrackingController
 from controllers.utils import get_state_update_pinocchio, send_joint_command
 
 
@@ -37,7 +37,7 @@ def main():
     FRAME_ID = robot.model.getFrameId("panda_grasptarget")
 
     # Define desired end-effector position
-    gt_desired_position = np.array([[0.45], [0.45], [1.0]])
+    gt_desired_position = np.array([[-0.45], [-0.45], [1.0]])
 
     # Get active joint ids
     active_joint_ids = [0, 1, 2, 3, 4, 5, 6, 10, 11]
@@ -51,7 +51,7 @@ def main():
     measured_positions = []
     time_array = []
 
-    for i in range(60000):
+    for i in range(10000):
         # Update pinocchio model and get joint states
         q, dq = get_state_update_pinocchio(robot, robotID)
 
@@ -62,12 +62,14 @@ def main():
         # Get initial position and create trajectory
         if i == 0:
             gt_init_position = copy.deepcopy(gt_position)
-            fb_control = FeedbackController(gt_init_position, gt_desired_position, 20.0)
-            fb_control.save_plan()
+            controller = TrajectoryTrackingController(
+                gt_init_position, gt_desired_position, 20.0
+            )
+            controller.save_plan()
 
         # Get joint torques using a resolved rate controller
         t = i * (1 / 240)
-        tau, planned_pos = fb_control.get_control(robot, t, q, dq, FRAME_ID)
+        tau, planned_pos = controller.get_control(robot, t, q, dq, FRAME_ID)
 
         # Send joint commands to motor
         send_joint_command(robotID, tau)

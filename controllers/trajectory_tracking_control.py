@@ -7,7 +7,7 @@ import pinocchio as pin
 from matplotlib.ticker import MultipleLocator
 
 
-class FeedbackController:
+class TrajectoryTrackingController:
     def __init__(self, init_pos, target_pos, terminal_time):
         self.init_pos = init_pos
         self.target_pos = target_pos
@@ -120,7 +120,7 @@ class FeedbackController:
         plt.tight_layout()
         plt.savefig(name, dpi=200, transparent=False, bbox_inches="tight")
 
-    def get_control(self, robot, t, q, dq, frameID):
+    def get_control(self, robot, t, q, dq, frameID, type="ID"):
         # Get planned position, velocity and accleration
         pos, vel, acc = self.retrieve_plan(t)
 
@@ -158,15 +158,25 @@ class FeedbackController:
         ddq_cmd = pinv_jac @ (acc - djac[:3, :] @ dq[:, np.newaxis])
         tau_ff = M @ (ddq_cmd + 10.0 * pinv_jac @ delta_p + 5.0 * pinv_jac @ delta_v)
 
-        # Feedback linearization control
-        tau = C[:, np.newaxis] + tau_ff + 0.1 * (0 - np.eye(9) @ dq[:, np.newaxis])
-
-        # Feedback control
-        # tau = (
-        #     10.0 * pinv_jac @ delta_p
-        #     + 5.0 * pinv_jac @ delta_v
-        #     + C[:, np.newaxis]
-        #     + 0.1 * (0 - np.eye(9) @ dq[:, np.newaxis])
-        # )
+        if type == "ID":
+            # Inverse dynamics control
+            tau = C[:, np.newaxis] + tau_ff + 0.1 * (0 - np.eye(9) @ dq[:, np.newaxis])
+        elif type == "FB":
+            # Feedback control
+            tau = (
+                10.0 * pinv_jac @ delta_p
+                + 5.0 * pinv_jac @ delta_v
+                + C[:, np.newaxis]
+                + 0.1 * (0 - np.eye(9) @ dq[:, np.newaxis])
+            )
+        elif type == "IDV":
+            # A variant of inverse dynamics control
+            tau = (
+                M @ ddq_cmd
+                + 20.0 * pinv_jac @ delta_p
+                + 5.0 * pinv_jac @ delta_v
+                + C[:, np.newaxis]
+                + 0.5 * (0 - np.eye(9) @ dq[:, np.newaxis])
+            )
 
         return tau, pos
