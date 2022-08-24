@@ -175,5 +175,7 @@ class TrajectoryTrackingController:
                 + C[:, np.newaxis]
                 + 0.5 * (0 - np.eye(9) @ dq[:, np.newaxis])
             )
+        elif type == "comp":
+            tau = C[:, np.newaxis]
 
         return tau, pos
