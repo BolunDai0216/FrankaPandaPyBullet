@@ -1,22 +1,32 @@
 import pathlib
 
 import numpy as np
-import pinocchio as pin
 import pybullet as p
 import pybullet_data
 from pinocchio.robot_wrapper import RobotWrapper
 
 from controllers.utils import get_state_update_pinocchio, send_joint_command
 
-MODE_ROTATE = 1
-MODE_STATIC = 2
+
+def compute_quat_vec_error(quat_1, quat_2):
+    eta1 = quat_1[0]
+    eta2 = quat_2[0]
+
+    quat_vec1 = quat_1[1:]
+    quat_vec2 = quat_2[1:]
+
+    delta_quat_vec = (
+        eta1 * quat_vec2 - eta2 * quat_vec1 - np.cross(quat_vec1, quat_vec2)
+    )
+
+    return delta_quat_vec
 
 
 def main():
     p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
-    p.setTimeStep(1 / 240)
+    # p.setTimeStep(1 / 240)
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
 
     # Load plane
@@ -30,9 +40,6 @@ def main():
     # Build pin_robot
     robot = RobotWrapper.BuildFromURDF(robot_URDF)
 
-    # Get frame ID for grasp target
-    FRAME_ID = robot.model.getFrameId("panda_grasptarget")
-
     # Get active joint ids
     active_joint_ids = [0, 1, 2, 3, 4, 5, 6, 10, 11]
 
@@ -41,41 +48,31 @@ def main():
         robotID, active_joint_ids, p.VELOCITY_CONTROL, forces=np.zeros(9),
     )
 
-    mode = MODE_ROTATE
+    target_joint = np.array(
+        [
+            0.0,
+            -0.785398163,
+            0.0,
+            -2.35619449,
+            0.0,
+            1.57079632679,
+            0.785398163397,
+            0.001,
+            0.001,
+        ]
+    )
 
     while True:
         # Update pinocchio model and get joint states
         q, dq = get_state_update_pinocchio(robot, robotID)
 
-        # Get frame ID for grasp target
-        jacobian_frame = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
-
-        # Get Jacobian from grasp target frame
-        # preprocessing is done in get_state_update_pinocchio()
-        jacobian = robot.getFrameJacobian(FRAME_ID, jacobian_frame)
-
-        # Get pseudo-inverse of frame Jacobian
-        pinv_jac = np.linalg.pinv(jacobian)
-
         # Compute Gravitational terms
         G = robot.gravity(q)
 
-        if mode == MODE_ROTATE:
-            target_dx = np.array(
-                [[0.0], [0.0], [0.0], [0.0], [0.0], [0.1 * (q[6] - 2.0)]]
-            )
-
-            tau = 0.5 * (pinv_jac @ target_dx - dq[:, np.newaxis]) + G[:, np.newaxis]
-
-            if np.linalg.norm(q[6] - 2.0) <= 1e-3:
-                mode = MODE_STATIC
-                target_joint = q
-
-        elif mode == MODE_STATIC:
-            tau = 0.5 * (target_joint - q) + 0.5 * (0 - dq) + G
+        tau = 0.5 * (target_joint - q) + 0.5 * (0 - dq) + G
 
         # Send joint commands to motor
-        send_joint_command(robotID, tau)
+        send_joint_command(robotID, tau[:, np.newaxis])
 
         p.stepSimulation()
 

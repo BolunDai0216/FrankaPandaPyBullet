@@ -40,3 +40,17 @@ def send_joint_command(robotID, tau):
         positionGains=zeroGains,
         velocityGains=zeroGains,
     )
+
+
+def compute_quat_vec_error(quat_1, quat_2):
+    eta1 = quat_1[0]
+    eta2 = quat_2[0]
+
+    quat_vec1 = quat_1[1:]
+    quat_vec2 = quat_2[1:]
+
+    delta_quat_vec = (
+        eta1 * quat_vec2 - eta2 * quat_vec1 - np.cross(quat_vec1, quat_vec2)
+    )
+
+    return delta_quat_vec

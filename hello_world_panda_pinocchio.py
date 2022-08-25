@@ -13,6 +13,7 @@ def main():
     p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
+    p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
 
     # Load plane
     p.loadURDF("plane.urdf")
@@ -39,7 +40,7 @@ def main():
         robotID, active_joint_ids, p.VELOCITY_CONTROL, forces=np.zeros(9),
     )
 
-    for i in range(100000):
+    for i in range(1000000):
         # Update pinocchio model and get joint states
         q, dq = get_state_update_pinocchio(robot, robotID)
 
