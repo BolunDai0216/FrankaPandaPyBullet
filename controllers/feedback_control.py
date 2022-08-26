@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pinocchio as pin
 from matplotlib.ticker import MultipleLocator
+from pdb import set_trace
 
 
 class FeedbackController:
@@ -22,16 +23,23 @@ class FeedbackController:
                 [0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
                 [0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-                [self.T ** 5, self.T ** 4, self.T ** 3, self.T ** 2, self.T, 1.0],
+                [self.T**5, self.T**4, self.T**3, self.T**2, self.T, 1.0],
                 [
-                    5 * self.T ** 4,
-                    4 * self.T ** 3,
-                    3 * self.T ** 2,
+                    5 * self.T**4,
+                    4 * self.T**3,
+                    3 * self.T**2,
                     2 * self.T,
                     1.0,
                     0.0,
                 ],
-                [20 * self.T ** 3, 12 * self.T ** 2, 6 * self.T, 2.0, 0.0, 0.0,],
+                [
+                    20 * self.T**3,
+                    12 * self.T**2,
+                    6 * self.T,
+                    2.0,
+                    0.0,
+                    0.0,
+                ],
             ]
         )
 
@@ -41,13 +49,13 @@ class FeedbackController:
     def retrieve_plan(self, t):
         if t <= self.T:
             time_vec_pos = np.array(
-                [[t ** 5], [t ** 4], [t ** 3], [t ** 2], [t ** 1], [0.0]]
+                [[t**5], [t**4], [t**3], [t**2], [t**1], [0.0]]
             )
             time_vec_vel = np.array(
-                [[5 * t ** 4], [4 * t ** 3], [3 * t ** 2], [2 * t ** 1], [1.0], [0.0]]
+                [[5 * t**4], [4 * t**3], [3 * t**2], [2 * t**1], [1.0], [0.0]]
             )
             time_vec_acc = np.array(
-                [[20 * t ** 3], [12 * t ** 2], [6 * t ** 1], [2.0], [0.0], [0.0]]
+                [[20 * t**3], [12 * t**2], [6 * t**1], [2.0], [0.0], [0.0]]
             )
 
             pos = self.coeffs.T @ time_vec_pos * self.target_vec + self.init_pos
@@ -141,12 +149,14 @@ class FeedbackController:
         # Compute Coriolis and Gravitational terms
         C = robot.nle(q, dq)
 
+        M = robot.mass(q)
+
         # Compute torque
         tau = (
             C[:, np.newaxis]
-            + pinv_jac @ delta_p
-            + 0.5 * pinv_jac @ delta_v
-            - 0.05 * (np.eye(9) @ dq[:, np.newaxis])
+            + 0.1 * M @ pinv_jac @ delta_p
+            + 0.05 * M @ pinv_jac @ delta_v
+            - 0.1 * (np.eye(9) @ dq[:, np.newaxis])
         )
 
         return tau
