@@ -1,3 +1,5 @@
+from pdb import set_trace
+
 import numpy as np
 import pybullet as p
 
@@ -43,14 +45,13 @@ def send_joint_command(robotID, tau):
 
 
 def compute_quat_vec_error(quat_1, quat_2):
-    eta1 = quat_1[0]
-    eta2 = quat_2[0]
+    eta1 = quat_1[-1]
+    eta2 = quat_2[-1]
 
-    quat_vec1 = quat_1[1:]
-    quat_vec2 = quat_2[1:]
+    quat_vec1 = quat_1[:3]
+    quat_vec2 = quat_2[:3]
 
     delta_quat_vec = (
         eta1 * quat_vec2 - eta2 * quat_vec1 - np.cross(quat_vec1, quat_vec2)
     )
-
     return delta_quat_vec

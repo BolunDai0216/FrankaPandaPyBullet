@@ -177,5 +177,11 @@ class TrajectoryTrackingController:
             )
         elif type == "comp":
             tau = C[:, np.newaxis]
+        elif type == "resolved_rate":
+            tau = (
+                1.0 * (pinv_jac @ (2 * delta_p + vel) - dq[:, np.newaxis])
+                + C[:, np.newaxis]
+                + 0.1 * (0 - np.eye(9) @ dq[:, np.newaxis])
+            )
 
         return tau, pos

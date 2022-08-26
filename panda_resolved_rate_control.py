@@ -1,12 +1,20 @@
+import copy
 import pathlib
+import time
+from pdb import set_trace
 
 import numpy as np
 import pinocchio as pin
 import pybullet as p
 import pybullet_data
 from pinocchio.robot_wrapper import RobotWrapper
+from scipy.spatial.transform import Rotation as R
 
-from controllers.utils import get_state_update_pinocchio, send_joint_command
+from controllers.utils import (
+    compute_quat_vec_error,
+    get_state_update_pinocchio,
+    send_joint_command,
+)
 
 MODE_ROTATE = 1
 MODE_STATIC = 2
@@ -16,7 +24,6 @@ def main():
     p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
-    p.setTimeStep(1 / 240)
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
 
     # Load plane
@@ -57,10 +64,40 @@ def main():
         p.resetJointState(robotID, active_joint_ids[i], joint_ang, 0.0)
 
     mode = MODE_ROTATE
+    init = True
+
+    last_quat_err = np.array([0.0, 0.0, 0.0, 1.0])
 
     while True:
         # Update pinocchio model and get joint states
         q, dq = get_state_update_pinocchio(robot, robotID)
+
+        # Get end-effector position
+        _gt_position = robot.data.oMf[FRAME_ID].translation
+        gt_position = _gt_position[:, np.newaxis]
+
+        if init:
+            _init_rotation = robot.data.oMf[FRAME_ID].rotation  # R10
+            _target_rotation = (
+                R.from_euler("z", 90, degrees=True).as_matrix() @ _init_rotation
+            )  # R20
+            target_rotation = R.from_matrix(_target_rotation)
+            target_quaternion = copy.deepcopy(target_rotation.as_quat())
+            target_position = np.array([[0.3], [0.4], [0.5]])
+            init = False
+
+        # Get end-effector orientation
+        _gt_orientation = robot.data.oMf[FRAME_ID].rotation
+
+        # Error rotation matrix
+        R_err = target_rotation.as_matrix() @ _gt_orientation.T
+        quat_err = R.from_matrix(R_err).as_quat()
+
+        cond = np.dot(target_quaternion, quat_err)
+        # cond = np.dot(last_quat_err, quat_err)
+        if cond < 0:
+            quat_err = -quat_err
+        last_quat_err = quat_err
 
         # Get frame ID for grasp target
         jacobian_frame = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
@@ -71,23 +108,32 @@ def main():
 
         # Get pseudo-inverse of frame Jacobian
         pinv_jac = np.linalg.pinv(jacobian)
+        pinv_jac[-1, :] = 0.0
+        pinv_jac[-2, :] = 0.0
 
         # Compute Gravitational terms
         G = robot.gravity(q)
 
+        # get velocity part of quat_err
+        quat_err_vel = quat_err[:3, np.newaxis]
+
         if mode == MODE_ROTATE:
-            target_dx = np.array(
-                [[0.00], [0.0], [0.0], [0.0], [0.0], [0.1 * (q[6] - 2.0)]]
-            )
+            target_dx = np.zeros((6, 1))
+            target_dx[:3] = 1.0 * (target_position - gt_position)
+            target_dx[3:] = -np.diag([0.5, 0.5, 0.5]) @ quat_err_vel
+            tau = (pinv_jac @ target_dx - dq[:, np.newaxis]) + G[:, np.newaxis]
 
-            tau = 0.5 * (pinv_jac @ target_dx - dq[:, np.newaxis]) + G[:, np.newaxis]
-
-            if np.linalg.norm(q[6] - 2.0) <= 1e-3:
-                mode = MODE_STATIC
-                target_joint = q
+            # if np.linalg.norm(quat_err_vel) <= 4.4e-2:
+            #     mode = MODE_STATIC
+            #     target_joint = q
 
         elif mode == MODE_STATIC:
             tau = 0.5 * (target_joint - q) + 0.5 * (0 - dq) + G
+
+        tau[-1] = 0.0
+        tau[-2] = 0.0
+
+        print(quat_err_vel, target_position - gt_position)
 
         # Send joint commands to motor
         send_joint_command(robotID, tau)

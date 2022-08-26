@@ -75,7 +75,9 @@ def main():
 
         # Get joint torques using a resolved rate controller
         t = i * (1 / 240)
-        tau, planned_pos = controller.get_control(robot, t, q, dq, FRAME_ID, type="FB")
+        tau, planned_pos = controller.get_control(
+            robot, t, q, dq, FRAME_ID, type="resolved_rate"
+        )
 
         # Send joint commands to motor
         send_joint_command(robotID, tau)
