@@ -37,3 +37,13 @@ $$\Delta{\dot{\mathbf{q}}} = \mathbf{J}^+(\mathbf{q})(\dot{\mathbf{x}}^{\mathrm{
 Similar to the case in impedance control we would also need to add terms for gravity compensation and joint velocity damping. This gives us the final controller as
 
 $$\tau = \mathbf{K}_p\Delta{\mathbf{q}} + \mathbf{K}_d\Delta{\dot{\mathbf{q}}} + \tau_G + \tau_v.$$
+
+## Feedback Linearization Controller with One-Step Desired Joint Acceleration
+
+We use the same $\Delta{\mathbf{q}}$ and $\Delta{\dot{\mathbf{q}}}$ as the previous section, and compute the desired joint acceleration as
+
+$$\ddot{\mathbf{q}}^\mathrm{des} = \mathbf{J}^+(\ddot{\mathbf{x}}^\mathrm{des} - \dot{\mathbf{J}}(\mathbf{q})\dot{\mathbf{q}})$$
+
+Then we have the final torque as
+
+$$\tau = \mathbf{M}(\ddot{\mathbf{q}}^\mathrm{des} + \mathbf{K}_p\Delta{\mathbf{q}} + \mathbf{K}_d\Delta{\dot{\mathbf{q}}}) + \tau_G + \tau_v.$$

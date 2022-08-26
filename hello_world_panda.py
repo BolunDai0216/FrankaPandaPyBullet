@@ -19,6 +19,19 @@ def main():
     debug_sliders = []
     joint_ids = []
 
+    default_joint_angles = [
+        0.0,
+        -0.785398163,
+        0.0,
+        -2.35619449,
+        0.0,
+        1.57079632679,
+        0.785398163397,
+        0.001,
+        0.001,
+    ]
+    counter = 0
+
     for i in range(n_j):
         # get info of each joint
         _joint_infos = p.getJointInfo(robotID, i)
@@ -30,12 +43,13 @@ def main():
                     _joint_infos[1].decode("UTF-8"),  # Joint Name
                     _joint_infos[8],  # Lower Joint Limit
                     _joint_infos[9],  # Upper Joint Limit
-                    0.0,  # Default Joint Angle
+                    default_joint_angles[counter],  # Default Joint Angle
                 )
             )
 
             # Save the non-fixed joint IDs
             joint_ids.append(_joint_infos[0])
+            counter += 1
 
     while True:
         for slider_id, joint_id in zip(debug_sliders, joint_ids):
