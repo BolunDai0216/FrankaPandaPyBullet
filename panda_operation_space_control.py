@@ -1,26 +1,32 @@
-import copy
 import pathlib
-import time
-from pdb import set_trace
 
 import numpy as np
+import numpy.linalg as LA
 import pinocchio as pin
 import pybullet as p
 import pybullet_data
 from pinocchio.robot_wrapper import RobotWrapper
 from scipy.spatial.transform import Rotation as R
 
-from controllers.utils import (
-    compute_quat_vec_error,
-    get_state_update_pinocchio,
-    send_joint_command,
-)
-
-MODE_ROTATE = 1
-MODE_STATIC = 2
+from controllers.utils import get_state_update_pinocchio, send_joint_command
 
 
 def main():
+    """
+    This file implements an operational space controller proportional controller.
+
+    The part of the controller that controls the position is:
+    τ_p = J_p^+[K_{p, p}(x_des - x)]
+
+    The part of the controller that controls the orientation is:
+    τ_o = J_o^+[K_{p, φ}(φ_des - φ)]
+
+    where φ = θr, with θ being the angle in the axis-angle representation and
+    r being the axis of rotation.
+
+    Then, the final controller is:
+    τ = τ_p + τ_o + G(q)
+    """
     p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
@@ -45,7 +51,10 @@ def main():
 
     # Disable the velocity control on the joints as we use torque control.
     p.setJointMotorControlArray(
-        robotID, active_joint_ids, p.VELOCITY_CONTROL, forces=np.zeros(9),
+        robotID,
+        active_joint_ids,
+        p.VELOCITY_CONTROL,
+        forces=np.zeros(9),
     )
 
     target_joint_angles = [
@@ -63,12 +72,10 @@ def main():
     for i, joint_ang in enumerate(target_joint_angles):
         p.resetJointState(robotID, active_joint_ids[i], joint_ang, 0.0)
 
-    mode = MODE_ROTATE
     init = True
+    target_position = np.array([[0.3], [-0.4], [0.5]])
 
-    last_quat_err = np.array([0.0, 0.0, 0.0, 1.0])
-
-    while True:
+    for i in range(80000):
         # Update pinocchio model and get joint states
         q, dq = get_state_update_pinocchio(robot, robotID)
 
@@ -76,14 +83,15 @@ def main():
         _gt_position = robot.data.oMf[FRAME_ID].translation
         gt_position = _gt_position[:, np.newaxis]
 
+        # Get target orientation based on initial orientation
         if init:
             _init_rotation = robot.data.oMf[FRAME_ID].rotation  # R10
             _target_rotation = (
-                R.from_euler("z", 90, degrees=True).as_matrix() @ _init_rotation
+                R.from_euler("x", 40, degrees=True).as_matrix()
+                @ R.from_euler("y", 40, degrees=True).as_matrix()
+                @ _init_rotation
             )  # R20
             target_rotation = R.from_matrix(_target_rotation)
-            target_quaternion = copy.deepcopy(target_rotation.as_quat())
-            target_position = np.array([[0.3], [0.4], [0.5]])
             init = False
 
         # Get end-effector orientation
@@ -91,13 +99,9 @@ def main():
 
         # Error rotation matrix
         R_err = target_rotation.as_matrix() @ _gt_orientation.T
-        quat_err = R.from_matrix(R_err).as_quat()
 
-        cond = np.dot(target_quaternion, quat_err)
-        # cond = np.dot(last_quat_err, quat_err)
-        if cond < 0:
-            quat_err = -quat_err
-        last_quat_err = quat_err
+        # Orientation error in axis-angle form
+        rotvec_err = R.from_matrix(R_err).as_rotvec()
 
         # Get frame ID for grasp target
         jacobian_frame = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
@@ -108,35 +112,29 @@ def main():
 
         # Get pseudo-inverse of frame Jacobian
         pinv_jac = np.linalg.pinv(jacobian)
-        pinv_jac[-1, :] = 0.0
-        pinv_jac[-2, :] = 0.0
 
         # Compute Gravitational terms
         G = robot.gravity(q)
 
-        # get velocity part of quat_err
-        quat_err_vel = quat_err[:3, np.newaxis]
+        # Compute controller
+        target_dx = np.zeros((6, 1))
+        target_dx[:3] = 1.0 * (target_position - gt_position)
+        target_dx[3:] = np.diag([0.5, 0.5, 0.5]) @ rotvec_err[:, np.newaxis]
+        tau = (pinv_jac @ target_dx - dq[:, np.newaxis]) + G[:, np.newaxis]
 
-        if mode == MODE_ROTATE:
-            target_dx = np.zeros((6, 1))
-            target_dx[:3] = 1.0 * (target_position - gt_position)
-            target_dx[3:] = -np.diag([0.5, 0.5, 0.5]) @ quat_err_vel
-            tau = (pinv_jac @ target_dx - dq[:, np.newaxis]) + G[:, np.newaxis]
-
-            # if np.linalg.norm(quat_err_vel) <= 4.4e-2:
-            #     mode = MODE_STATIC
-            #     target_joint = q
-
-        elif mode == MODE_STATIC:
-            tau = 0.5 * (target_joint - q) + 0.5 * (0 - dq) + G
-
+        # Set control for the two fingers to zero
         tau[-1] = 0.0
         tau[-2] = 0.0
 
-        print(quat_err_vel, target_position - gt_position)
-
         # Send joint commands to motor
         send_joint_command(robotID, tau)
+
+        if i % 500 == 0:
+            print(
+                "Iter {:.2e} \t ǁeₒǁ₂: {:.2e} \t ǁeₚǁ₂: {:.2e}".format(
+                    i, LA.norm(rotvec_err), LA.norm(target_position - gt_position)
+                ),
+            )
 
         p.stepSimulation()
 
