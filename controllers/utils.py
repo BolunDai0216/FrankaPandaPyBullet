@@ -44,14 +44,12 @@ def send_joint_command(robotID, tau):
     )
 
 
-def compute_quat_vec_error(quat_1, quat_2):
-    eta1 = quat_1[-1]
-    eta2 = quat_2[-1]
+def compute_quat_vec_error(quat_desired, quat_measured):
+    eta_d = quat_desired[-1]
+    eta = quat_measured[-1]
 
-    quat_vec1 = quat_1[:3]
-    quat_vec2 = quat_2[:3]
+    q_d = quat_desired[:3]
+    q = quat_measured[:3]
 
-    delta_quat_vec = (
-        eta1 * quat_vec2 - eta2 * quat_vec1 - np.cross(quat_vec1, quat_vec2)
-    )
+    delta_quat_vec = eta_d * q - eta * q_d - np.cross(q_d, q)
     return delta_quat_vec

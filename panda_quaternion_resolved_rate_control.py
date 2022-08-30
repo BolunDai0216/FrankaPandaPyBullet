@@ -1,6 +1,7 @@
 import copy
 import pathlib
 import time
+from pdb import set_trace
 
 import numpy as np
 import numpy.linalg as LA
@@ -27,8 +28,7 @@ def main():
     The part of the controller that controls the orientation is:
     τ_o = J_o^+[K_{p, φ}(φ_des - φ)]
 
-    where φ = θr, with θ being the angle in the axis-angle representation and
-    r being the axis of rotation.
+    where φ is the vector part of a quaternion.
 
     Then, the final controller is:
     τ = τ_p + τ_o + G(q)
@@ -94,7 +94,7 @@ def main():
             _init_rotation = robot.data.oMf[FRAME_ID].rotation  # R10
             _target_rotation = (
                 R.from_euler("x", 0, degrees=True).as_matrix()
-                @ R.from_euler("z", 0, degrees=True).as_matrix()
+                @ R.from_euler("z", 90, degrees=True).as_matrix()
                 @ _init_rotation
             )  # R20
             target_rotation = R.from_matrix(_target_rotation)
@@ -104,12 +104,6 @@ def main():
         # Get end-effector orientation
         _gt_orientation = robot.data.oMf[FRAME_ID].rotation
         _gt_quaternion = R.from_matrix(_gt_orientation).as_quat()
-
-        # Error rotation matrix
-        R_err = target_rotation.as_matrix() @ _gt_orientation.T
-
-        # Orientation error in axis-angle form
-        rotvec_err = R.from_matrix(R_err).as_rotvec()
 
         # Orientation error in quaternion form
         quat_err = compute_quat_vec_error(target_quaternion, _gt_quaternion)
@@ -130,9 +124,7 @@ def main():
         # Compute controller
         target_dx = np.zeros((6, 1))
         target_dx[:3] = 1.0 * (target_position - gt_position)
-        # target_dx[3:] = np.diag([3.0, 3.0, 3.0]) @ rotvec_err[:, np.newaxis]
-        set_trace()
-        target_dx[3:] = np.diag([3.0, 3.0, 3.0]) @ quat_err
+        target_dx[3:] = np.diag([3.0, 3.0, 3.0]) @ quat_err[:, np.newaxis]
 
         tau = (pinv_jac @ target_dx - dq[:, np.newaxis]) + G[:, np.newaxis]
 
@@ -147,7 +139,7 @@ def main():
         if i % 500 == 0:
             print(
                 "Iter {:.2e} \t ǁeₒǁ₂: {:.2e} \t ǁeₚǁ₂: {:.2e}".format(
-                    i, LA.norm(rotvec_err), LA.norm(target_position - gt_position)
+                    i, LA.norm(quat_err), LA.norm(target_position - gt_position)
                 ),
             )
 
