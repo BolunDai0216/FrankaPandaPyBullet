@@ -80,25 +80,25 @@ def main():
         q, dq = get_state_update_pinocchio(robot, robotID)
 
         # Get end-effector position
-        _gt_position = robot.data.oMf[FRAME_ID].translation
-        gt_position = _gt_position[:, np.newaxis]
+        _ee_position = robot.data.oMf[FRAME_ID].translation
+        ee_position = _ee_position[:, np.newaxis]
 
         # Get target orientation based on initial orientation
         if init:
             _init_rotation = robot.data.oMf[FRAME_ID].rotation  # R10
             _target_rotation = (
-                R.from_euler("x", 0, degrees=True).as_matrix()
-                @ R.from_euler("z", 0, degrees=True).as_matrix()
+                R.from_euler("x", 45, degrees=True).as_matrix()
+                @ R.from_euler("z", 90, degrees=True).as_matrix()
                 @ _init_rotation
             )  # R20
             target_rotation = R.from_matrix(_target_rotation)
             init = False
 
         # Get end-effector orientation
-        _gt_orientation = robot.data.oMf[FRAME_ID].rotation
+        _ee_orientation = robot.data.oMf[FRAME_ID].rotation
 
         # Error rotation matrix
-        R_err = target_rotation.as_matrix() @ _gt_orientation.T
+        R_err = target_rotation.as_matrix() @ _ee_orientation.T
 
         # Orientation error in axis-angle form
         rotvec_err = R.from_matrix(R_err).as_rotvec()
@@ -118,7 +118,7 @@ def main():
 
         # Compute controller
         target_dx = np.zeros((6, 1))
-        target_dx[:3] = 1.0 * (target_position - gt_position)
+        target_dx[:3] = 1.0 * (target_position - ee_position)
         target_dx[3:] = np.diag([3.0, 3.0, 3.0]) @ rotvec_err[:, np.newaxis]
 
         tau = (pinv_jac @ target_dx - dq[:, np.newaxis]) + G[:, np.newaxis]
@@ -129,12 +129,11 @@ def main():
 
         # Send joint commands to motor
         send_joint_command(robotID, tau)
-        # time.sleep(1e-2)
 
         if i % 500 == 0:
             print(
                 "Iter {:.2e} \t ǁeₒǁ₂: {:.2e} \t ǁeₚǁ₂: {:.2e}".format(
-                    i, LA.norm(rotvec_err), LA.norm(target_position - gt_position)
+                    i, LA.norm(rotvec_err), LA.norm(target_position - ee_position)
                 ),
             )
 
