@@ -1,6 +1,4 @@
-import copy
 import pathlib
-import time
 
 import numpy as np
 import numpy.linalg as LA
@@ -10,11 +8,7 @@ import pybullet_data
 from pinocchio.robot_wrapper import RobotWrapper
 from scipy.spatial.transform import Rotation as R
 
-from controllers.utils import (
-    compute_quat_vec_error,
-    get_state_update_pinocchio,
-    send_joint_command,
-)
+from controllers.utils import get_state_update_pinocchio, send_joint_command
 
 
 def main():
@@ -98,21 +92,16 @@ def main():
                 @ _init_rotation
             )  # R20
             target_rotation = R.from_matrix(_target_rotation)
-            target_quaternion = copy.deepcopy(target_rotation.as_quat())
             init = False
 
         # Get end-effector orientation
         _gt_orientation = robot.data.oMf[FRAME_ID].rotation
-        _gt_quaternion = R.from_matrix(_gt_orientation).as_quat()
 
         # Error rotation matrix
         R_err = target_rotation.as_matrix() @ _gt_orientation.T
 
         # Orientation error in axis-angle form
         rotvec_err = R.from_matrix(R_err).as_rotvec()
-
-        # Orientation error in quaternion form
-        quat_err = compute_quat_vec_error(target_quaternion, _gt_quaternion)
 
         # Get frame ID for grasp target
         jacobian_frame = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
@@ -130,9 +119,7 @@ def main():
         # Compute controller
         target_dx = np.zeros((6, 1))
         target_dx[:3] = 1.0 * (target_position - gt_position)
-        # target_dx[3:] = np.diag([3.0, 3.0, 3.0]) @ rotvec_err[:, np.newaxis]
-        set_trace()
-        target_dx[3:] = np.diag([3.0, 3.0, 3.0]) @ quat_err
+        target_dx[3:] = np.diag([3.0, 3.0, 3.0]) @ rotvec_err[:, np.newaxis]
 
         tau = (pinv_jac @ target_dx - dq[:, np.newaxis]) + G[:, np.newaxis]
 
