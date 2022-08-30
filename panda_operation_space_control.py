@@ -51,10 +51,7 @@ def main():
 
     # Disable the velocity control on the joints as we use torque control.
     p.setJointMotorControlArray(
-        robotID,
-        active_joint_ids,
-        p.VELOCITY_CONTROL,
-        forces=np.zeros(9),
+        robotID, active_joint_ids, p.VELOCITY_CONTROL, forces=np.zeros(9),
     )
 
     target_joint_angles = [
@@ -73,7 +70,7 @@ def main():
         p.resetJointState(robotID, active_joint_ids[i], joint_ang, 0.0)
 
     init = True
-    target_position = np.array([[0.3], [-0.4], [0.5]])
+    target_position = np.array([[0.3], [0.4], [0.5]])
 
     for i in range(80000):
         # Update pinocchio model and get joint states
@@ -89,6 +86,7 @@ def main():
             _target_rotation = (
                 R.from_euler("x", 40, degrees=True).as_matrix()
                 @ R.from_euler("y", 40, degrees=True).as_matrix()
+                @ R.from_euler("z", 40, degrees=True).as_matrix()
                 @ _init_rotation
             )  # R20
             target_rotation = R.from_matrix(_target_rotation)
