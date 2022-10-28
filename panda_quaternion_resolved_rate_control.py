@@ -105,7 +105,7 @@ def main():
         # Orientation error in quaternion form
         quat_err = compute_quat_vec_error(target_quaternion, _gt_quaternion)
 
-        set_trace()
+        # Orientation error in axis-angle form
         R_err = (
             target_rotation.as_matrix() @ R.from_matrix(_gt_orientation).as_matrix().T
         )
@@ -126,8 +126,8 @@ def main():
 
         # Compute controller
         target_dx = np.zeros((6, 1))
-        target_dx[:3] = 1.0 * (target_position - gt_position)
-        target_dx[3:] = np.diag([3.0, 3.0, 3.0]) @ quat_err[:, np.newaxis]
+        target_dx[:3] = 5.0 * (target_position - gt_position)
+        target_dx[3:] = np.diag([10.0, 10.0, 10.0]) @ quat_err[:, np.newaxis]
 
         tau = (pinv_jac @ target_dx - dq[:, np.newaxis]) + G[:, np.newaxis]
 
